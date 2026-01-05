@@ -78,11 +78,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GuardController
   player: {fileID: 0}
-  chasingSpeed: 2
-  chasingRotSpeed: 2
-  chasingAccuracy: 5
+  showFOVGizmos: 1
+  fovDistance: 20
+  fovAngle: 45
+  chasingSpeed: 3
+  chasingRotSpeed: 3
+  chasingAccuracy: 3
   patrolDistance: 10
-  knockRadius: 20
+  patrolWait: 5
+  espacePoint: {fileID: 0}
 --- !u!195 &1653305471842513057
 NavMeshAgent:
   m_ObjectHideFlags: 0

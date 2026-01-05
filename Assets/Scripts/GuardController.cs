@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 // ============================================================================
 // GuardController
@@ -12,7 +13,7 @@ using UnityEngine;
 [RequireComponent(typeof(UnityEngine.AI.NavMeshAgent))] // Require un NavMeshAgent para o movemento
 public class GuardController : MonoBehaviour // Controlador de gardián con FSM (Finite State Machine)
 {
-    enum State { Patrol, Investigate, Chase }; // Estados da FSM: Patrullar, Investigar, Perseguir
+    enum State { Patrol, Investigate, Chase, Escape }; // Estados da FSM: Patrullar, Investigar, Perseguir, Escapar
     State currentState = State.Patrol; // Estado actual, comeza en Patrol
     Vector3 lastPlaceSeen; // Última posición onde se viu o xogador
     public Transform player; // Referencia ao transform do xogador
@@ -31,6 +32,12 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
     public float patrolDistance = 10.0f; // Radio de patrulla
     public float patrolWait = 5.0f; // Tempo de espera entre puntos de patrulla
     float patrolTimePassed = 0; // Tempo pasado desde o último cambio de punto de patrulla
+
+    [Header("Escape Point")]
+    [SerializeField] Transform escapePoint;
+
+    bool isEscape;
+
 
     //=========================================================================
     // Comproba se o gardián pode ver ao xogador dentro do seu campo de visión (distancia e ángulo) e sen obstrucións.
@@ -72,16 +79,29 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
     {
         State tempState = currentState; // Garda o estado actual para detectar cambios
 
-        if (ICanSee(player)) // Se ve o xogador
+        if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
         {
-            currentState = State.Chase; // Cambia a perseguir
-            lastPlaceSeen = player.position; // Actualiza a última posición vista
+            isEscape = true;
+            currentState = State.Escape;
+            lastPlaceSeen = transform.position;
         }
-        else
+        else if (!isEscape)
         {
-            if (currentState == State.Chase) // Se estaba perseguindo e xa non ve o xogador
+            if (ICanSee(player)) // Se ve o xogador
             {
-                currentState = State.Investigate; // Cambia a investigar
+                currentState = State.Chase; // Cambia a perseguir
+                lastPlaceSeen = player.position; // Actualiza a última posición vista
+            }
+            else
+            {
+                if (currentState == State.Chase) // Se estaba perseguindo e xa non ve o xogador
+                {
+                    currentState = State.Investigate; // Cambia a investigar
+                }
+                else
+                {
+                    currentState = State.Patrol;
+                }
             }
         }
 
@@ -95,6 +115,9 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
                 break;
             case State.Chase:
                 Chase(player);
+                break;
+            case State.Escape:
+                Escape();
                 break;
         }
 
@@ -160,6 +183,23 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
             GetComponent<UnityEngine.AI.NavMeshAgent>().SetDestination(patrollingPoint); // Establece o destino
         }
     }
+
+    void Escape()
+    {
+        float distanceToPoint = Vector3.Distance(transform.position, escapePoint.position);
+
+        Vector3 direction = escapePoint.position - transform.position;
+        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * chasingRotSpeed);
+
+        GetComponent<UnityEngine.AI.NavMeshAgent>().SetDestination(escapePoint.position);
+
+        if (distanceToPoint < GetComponent<UnityEngine.AI.NavMeshAgent>().stoppingDistance + 2)
+        {
+            isEscape = false;
+        }
+    }
+
+
 
     //=========================================================================
     // Ordena investigar un punto externo (p.ex. a orixe dun ruído) e muda o estado a Investigar
